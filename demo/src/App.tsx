@@ -1,38 +1,46 @@
+import { framer } from "framer-plugin";
 import Carousel from "./components/Carousel";
 
-export const App = () => {
+framer.showUI({
+  position: "center",
+  width: 1000,
+  height: 400,
+});
+
+function App() {
   const slides = [
-    <div
-      key="1"
-      className="w-full h-full bg-blue-500 flex items-center justify-center"
-    >
-      <h2 className="text-white text-4xl">Slide 1</h2>
-    </div>,
-    <div
-      key="2"
-      className="w-full h-full bg-red-500 flex items-center justify-center"
-    >
-      <h2 className="text-white text-4xl">Slide 2</h2>
-    </div>,
-    <div
-      key="3"
-      className="w-full h-full bg-green-500 flex items-center justify-center"
-    >
-      <h2 className="text-white text-4xl">Slide 3</h2>
-    </div>,
+    {
+      image: {
+        src: "https://picsum.photos/800/400?random=1",
+        alt: "First slide",
+      },
+      title: "First Slide",
+      description: "This is the first slide description",
+    },
+    {
+      image: {
+        src: "https://picsum.photos/800/400?random=2",
+        alt: "Second slide",
+      },
+      title: "Second Slide",
+      description: "This is the second slide description",
+    },
   ];
 
   return (
-    <div className="w-full h-screen">
-      <div className="w-full h-[500px]">
-        <Carousel
-          items={slides}
-          autoPlay={true}
-          interval={3000}
-          showArrows={true}
-          showDots={true}
-        />
-      </div>
+    <div style={{ padding: "20px" }}>
+      <h1>Carousel Demo</h1>
+      <Carousel
+        slides={slides}
+        width={800}
+        height={400}
+        autoPlay={true}
+        interval={3000}
+        showArrows={true}
+        showDots={true}
+      />
     </div>
   );
-};
+}
+
+export default App;

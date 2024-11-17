@@ -1,132 +1,132 @@
-import { motion, AnimatePresence } from "motion/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import "./style.css";
 
 interface CarouselProps {
-  items: React.ReactNode[];
-  autoPlay?: boolean;
-  interval?: number;
+  slides: Array<{
+    image: { src: string; srcSet?: string; alt?: string };
+    title?: string;
+    description?: string;
+  }>;
+  width?: number;
+  height?: number;
+  borderRadius?: string;
   showArrows?: boolean;
   showDots?: boolean;
+  autoPlay?: boolean;
+  interval?: number;
 }
 
-const Carousel = ({
-  items,
-  autoPlay = true,
-  interval = 3000,
+export default function Carousel({
+  slides = [],
+  width = 400,
+  height = 300,
+  borderRadius = "12px",
   showArrows = true,
   showDots = true,
-}: CarouselProps) => {
+  autoPlay = true,
+  interval = 3000,
+}: CarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [direction, setDirection] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const timerRef = useRef<number>();
 
-  const slideVariants = {
-    enter: (direction: number) => ({
-      x: direction > 0 ? 1000 : -1000,
-      opacity: 0,
-    }),
-    center: {
-      zIndex: 1,
-      x: 0,
-      opacity: 1,
-    },
-    exit: (direction: number) => ({
-      zIndex: 0,
-      x: direction < 0 ? 1000 : -1000,
-      opacity: 0,
-    }),
-  };
+  const startAutoPlay = useCallback(() => {
+    if (autoPlay && slides.length > 1) {
+      timerRef.current = window.setInterval(() => {
+        handleNext();
+      }, interval);
+    }
+  }, [autoPlay, interval, slides.length]);
 
-  const swipeConfidenceThreshold = 10000;
-  const swipePower = (offset: number, velocity: number) => {
-    return Math.abs(offset) * velocity;
-  };
-
-  const paginate = (newDirection: number) => {
-    setDirection(newDirection);
-    setCurrentIndex((prevIndex) => {
-      let nextIndex = prevIndex + newDirection;
-      if (nextIndex < 0) nextIndex = items.length - 1;
-      if (nextIndex >= items.length) nextIndex = 0;
-      return nextIndex;
-    });
-  };
+  const stopAutoPlay = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+  }, []);
 
   useEffect(() => {
-    if (!autoPlay) return;
+    startAutoPlay();
+    return () => stopAutoPlay();
+  }, [startAutoPlay, stopAutoPlay]);
 
-    const timer = setInterval(() => {
-      paginate(1);
-    }, interval);
+  const handleNext = useCallback(() => {
+    if (isTransitioning) return;
+    setIsTransitioning(true);
+    setCurrentIndex((prev) => (prev + 1) % slides.length);
+    setTimeout(() => setIsTransitioning(false), 500);
+  }, [slides.length, isTransitioning]);
 
-    return () => clearInterval(timer);
-  }, [autoPlay, interval]);
+  const handlePrev = useCallback(() => {
+    if (isTransitioning) return;
+    setIsTransitioning(true);
+    setCurrentIndex((prev) => (prev - 1 + slides.length) % slides.length);
+    setTimeout(() => setIsTransitioning(false), 500);
+  }, [slides.length, isTransitioning]);
 
   return (
-    <div className="relative w-full h-full overflow-hidden">
-      <AnimatePresence initial={false} custom={direction}>
-        <motion.div
-          key={currentIndex}
-          custom={direction}
-          variants={slideVariants}
-          initial="enter"
-          animate="center"
-          exit="exit"
-          transition={{
-            x: { type: "spring", stiffness: 300, damping: 30 },
-            opacity: { duration: 0.2 },
-          }}
-          drag="x"
-          dragConstraints={{ left: 0, right: 0 }}
-          dragElastic={1}
-          onDragEnd={(e, { offset, velocity }) => {
-            const swipe = swipePower(offset.x, velocity.x);
+    <div
+      className="carousel"
+      style={{ width, height, borderRadius }}
+      onMouseEnter={stopAutoPlay}
+      onMouseLeave={startAutoPlay}
+    >
+      <div
+        className="carousel-track"
+        style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+      >
+        {slides.map((slide, index) => (
+          <div key={index} className="carousel-slide">
+            <img
+              src={slide.image.src}
+              srcSet={slide.image.srcSet}
+              alt={slide.image.alt || ""}
+              className="carousel-image"
+            />
+            {(slide.title || slide.description) && (
+              <div
+                className={`slide-content ${
+                  index === currentIndex ? "active" : ""
+                }`}
+              >
+                {slide.title && <h3>{slide.title}</h3>}
+                {slide.description && <p>{slide.description}</p>}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
 
-            if (swipe < -swipeConfidenceThreshold) {
-              paginate(1);
-            } else if (swipe > swipeConfidenceThreshold) {
-              paginate(-1);
-            }
-          }}
-          className="absolute w-full h-full"
-        >
-          {items[currentIndex]}
-        </motion.div>
-      </AnimatePresence>
-
-      {showArrows && (
+      {showArrows && slides.length > 1 && (
         <>
           <button
-            onClick={() => paginate(-1)}
-            className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10"
+            className="nav-button prev"
+            onClick={handlePrev}
+            aria-label="Previous slide"
           >
             ←
           </button>
           <button
-            onClick={() => paginate(1)}
-            className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10"
+            className="nav-button next"
+            onClick={handleNext}
+            aria-label="Next slide"
           >
             →
           </button>
         </>
       )}
 
-      {showDots && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 z-10">
-          {items.map((_, index) => (
+      {showDots && slides.length > 1 && (
+        <div className="dots">
+          {slides.map((_, index) => (
             <button
               key={index}
-              onClick={() => {
-                setDirection(index > currentIndex ? 1 : -1);
-                setCurrentIndex(index);
-              }}
-              className={`w-2 h-2 rounded-full ${
-                index === currentIndex ? "bg-white" : "bg-white/50"
-              }`}
+              className={`dot ${index === currentIndex ? "active" : ""}`}
+              onClick={() => setCurrentIndex(index)}
+              aria-label={`Go to slide ${index + 1}`}
             />
           ))}
         </div>
       )}
     </div>
   );
-};
-export default Carousel;
+}
